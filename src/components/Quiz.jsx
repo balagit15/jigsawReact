@@ -14,6 +14,13 @@ const Quiz = ({ quiz, onAnswer }) => {
     );
   }
 
+  const handleAnswer = (selectedOption) => {
+    // Ensure we have both the quiz and onAnswer callback
+    if (quiz && onAnswer) {
+      onAnswer(selectedOption);
+    }
+  };
+
   return (
     <motion.div
       variants={slideUp}
@@ -44,7 +51,7 @@ const Quiz = ({ quiz, onAnswer }) => {
             className="bg-indigo-500 text-white py-4 px-6 rounded-xl hover:bg-indigo-600 
                      transition-colors shadow-md hover:shadow-lg font-semibold
                      border-2 border-transparent hover:border-indigo-300"
-            onClick={() => onAnswer(option)}
+            onClick={() => handleAnswer(option)}
           >
             {option}
           </motion.button>

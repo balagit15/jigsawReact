@@ -7,6 +7,7 @@ import GameStatus from './components/GameStatus';
 import StartScreen from './components/StartScreen';
 import SummaryScreen from './components/SummaryScreen';
 import Confetti from './components/Confetti';
+import GameOver from './components/GameOver';
 import { useTimer } from './hooks/useTimer';
 import { saveGameTime } from './services/gameService';
 
@@ -17,6 +18,8 @@ function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [username, setUsername] = useState('');
   const [hints, setHints] = useState([
     '/images/level-1.jpeg',
     '/images/level-2.jpeg',
@@ -52,32 +55,61 @@ function App() {
     }, 2000);
   };
 
+  const handleStartGame = (name) => {
+    console.log('Starting game with username:', name);
+    setUsername(name);
+    setGameStarted(true);
+  };
+
   const handleQuizAnswer = async (answer) => {
-    if (quiz && answer === quiz.answer) {
-      setShowConfetti(true);
-      setTimeout(async () => {
-        setShowConfetti(false);
-        if (currentLevel < 2) {
-          setCurrentLevel((prev) => prev + 1);
-          setShowQuiz(false);
-        } else {
-          try {
-            await saveGameTime(timer);
-            setGameStarted(false);
-            setGameCompleted(true);
-          } catch (error) {
-            console.error('Error saving time:', error);
-          }
+    if (!quiz) return;
+    
+    if (answer === quiz.answer) {
+      if (currentLevel < hints.length - 1) {
+        setShowQuiz(false);
+        setCurrentLevel(prev => prev + 1);
+      } else {
+        try {
+          await saveGameTime(timer.time, username);
+          setGameCompleted(true);
+        } catch (error) {
+          console.error('Error saving completion time:', error);
         }
-      }, 2000);
+      }
+    } else {
+      // Wrong answer selected - trigger game over
+      try {
+        console.log('Saving game over with username:', username);
+        const response = await axios.post('http://localhost:5000/api/gameover', {
+          timeTaken: timer.time,
+          username: username
+        });
+        console.log('Game over save response:', response.data);
+        
+        if (response.data.success) {
+          setShowQuiz(false);
+          setGameStarted(true);
+          setIsGameOver(true);
+          setGameCompleted(false);
+        } else {
+          console.error('Failed to save game over:', response.data.error);
+        }
+      } catch (error) {
+        console.error('Error saving game over time:', error);
+      }
     }
   };
 
   const handleRestart = () => {
-    setGameCompleted(false);
     setCurrentLevel(0);
+    setQuiz(null);
     setShowQuiz(false);
     setGameStarted(false);
+    setShowConfetti(false);
+    setGameCompleted(false);
+    setIsGameOver(false);
+    setUsername('');
+    timer.reset();
   };
 
   return (
@@ -87,28 +119,35 @@ function App() {
     >
       <div className="max-w-4xl mx-auto">
         {showConfetti && <Confetti />}
-        {!gameStarted ? (
-          gameCompleted ? (
-            <SummaryScreen timeTaken={timer} onRestart={handleRestart} />
+        {isGameOver && (
+          <GameOver 
+            timeTaken={timer.time}
+            username={username}
+            onRestart={handleRestart}
+          />
+        )}
+        {!isGameOver && (
+          !gameStarted ? (
+            <StartScreen onStart={handleStartGame} />
+          ) : gameCompleted ? (
+            <SummaryScreen timeTaken={timer.time} onRestart={handleRestart} />
           ) : (
-            <StartScreen onStart={() => setGameStarted(true)} />
+            <>
+              <GameStatus level={currentLevel} timer={timer.time} />
+              <AnimatePresence mode="wait">
+                {showQuiz && quiz ? (
+                  <Quiz key="quiz" quiz={quiz} onAnswer={handleQuizAnswer} />
+                ) : (
+                  <PuzzleGrid
+                    key="puzzle"
+                    level={currentLevel + 1}
+                    hintImage={hints[currentLevel]}
+                    onSolved={handlePuzzleSolved}
+                  />
+                )}
+              </AnimatePresence>
+            </>
           )
-        ) : (
-          <>
-            <GameStatus level={currentLevel} timer={timer} />
-            <AnimatePresence mode="wait">
-              {showQuiz && quiz ? (
-                <Quiz key="quiz" quiz={quiz} onAnswer={handleQuizAnswer} />
-              ) : (
-                <PuzzleGrid
-                  key="puzzle"
-                  level={currentLevel + 1}
-                  hintImage={hints[currentLevel]} // Pass the hint image for the current level
-                  onSolved={handlePuzzleSolved}
-                />
-              )}
-            </AnimatePresence>
-          </>
         )}
       </div>
     </div>

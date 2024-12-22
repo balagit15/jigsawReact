@@ -29,6 +29,7 @@ const resultSchema = new mongoose.Schema({
   user: String,
   timeTaken: Number,
   date: { type: Date, default: Date.now },
+  isGameOver: { type: Boolean, default: false }
 });
 
 const Quiz = mongoose.model('Quiz', quizSchema);
@@ -51,14 +52,42 @@ app.get('/api/quiz/:level', async (req, res) => {
   }
 });
 
-// Save user's time taken
+// Save game time (for successful completion)
 app.post('/api/save-time', async (req, res) => {
   try {
-    const { user, timeTaken } = req.body;
-    const result = new Result({ user, timeTaken });
+    const { timeTaken, user } = req.body;
+    const result = new Result({
+      user,
+      timeTaken,
+      date: new Date(),
+      isGameOver: false
+    });
     await result.save();
     res.json({ success: true, message: 'Time saved successfully' });
   } catch (err) {
+    console.error('Error saving time:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Save game over time
+app.post('/api/gameover', async (req, res) => {
+  try {
+    const { timeTaken, username } = req.body;
+    console.log('Received game over data:', { timeTaken, username }); // Debug log
+    
+    const result = new Result({
+      user: username,
+      timeTaken,
+      date: new Date(),
+      isGameOver: true
+    });
+    await result.save();
+    console.log('Saved game over result:', result); // Debug log
+    
+    res.json({ success: true, message: 'Game over time saved successfully' });
+  } catch (err) {
+    console.error('Error saving game over time:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
