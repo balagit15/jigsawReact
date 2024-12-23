@@ -52,7 +52,7 @@ const PuzzleGrid = ({ level, hintImage, onSolved }) => {
       animate={{ opacity: 1 }}
     >
       {/* Display the hint image */}
-      <div className="mb-4">
+      <div className="mb-4 w-64">
         <img
           src={hintImage}
           alt={`Hint for level ${level}`}
